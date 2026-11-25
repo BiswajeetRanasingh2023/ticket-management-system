@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Service Ticket Management System</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+    .container { max-width: 950px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; }
+    button { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #1d4ed8; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th { background: #f8fafc; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .High { background: #fee2e2; color: #b91c1c; }
+    .Medium { background: #fef3c7; color: #b45309; }
+    .Low { background: #dcfce7; color: #15803d; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Create Customer Service Ticket</h2>
+  <form id="ticketForm">
+    <div class="grid">
+      <input type="text" id="name" placeholder="Customer Name" required>
+      <input type="email" id="email" placeholder="Customer Email" required>
+      <input type="text" id="phone" placeholder="Phone Number (10 digits)" required>
+      <select id="priority">
+        <option value="Low">Low Priority</option>
+        <option value="Medium" selected>Medium Priority</option>
+        <option value="High">High Priority</option>
+      </select>
+    </div>
+    <input type="text" id="subject" placeholder="Issue Subject (e.g., Microwave Heating Issue)" required style="margin-bottom:10px;">
+    <textarea id="description" placeholder="Detailed Issue Description" rows="3" style="margin-bottom:10px;"></textarea>
+    <button type="submit">Raise Ticket</button>
+  </form>
+
+  <h2 style="margin-top:35px;">Active Tickets</h2>
+  <input type="text" id="searchInput" onkeyup="filterTickets()" placeholder="Search by customer name, subject, or status..." style="margin-bottom:10px;">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Customer</th>
+        <th>Phone</th>
+        <th>Subject</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="ticketTable"></tbody>
+  </table>
+</div>
+
+<script>
+  let allTickets = [];
+
+  async function loadTickets() {
+    const res = await fetch('/api/tickets');
+    allTickets = await res.json();
+    renderTable(allTickets);
+  }
+
+  function renderTable(tickets) {
+    const tbody = document.getElementById('ticketTable');
+    tbody.innerHTML = tickets.map(t => `
+      <tr>
+        <td>#${t.id}</td>
+        <td>${t.customer}</td>
+        <td>${t.phone}</td>
+        <td>${t.subject}</td>
+        <td><span class="badge ${t.priority}">${t.priority}</span></td>
+        <td><strong>${t.status}</strong></td>
+        <td>
+          <select onchange="updateStatus(${t.id}, this.value)">
+            <option value="Open" ${t.status === 'Open' ? 'selected' : ''}>Open</option>
+            <option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+            <option value="Closed" ${t.status === 'Closed' ? 'selected' : ''}>Closed</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phone = document.getElementById('phone').value;
+    if (!/^\d{10}$/.test(phone)) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    const params = new URLSearchParams({
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      phone: phone,
+      priority: document.getElementById('priority').value,
+      subject: document.getElementById('subject').value,
+      description: document.getElementById('description').value
+    });
+
+    await fetch('/api/tickets', { method: 'POST', body: params.toString() });
+    e.target.reset();
+    loadTickets();
+  });
+
+  async function updateStatus(id, status) {
+    const params = new URLSearchParams({ id, status });
+    await fetch('/api/tickets', { method: 'PUT', body: params.toString() });
+    loadTickets();
+  }
+
+  function filterTickets() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allTickets.filter(t => 
+      t.customer.toLowerCase().includes(q) || 
+      t.subject.toLowerCase().includes(q) || 
+      t.status.toLowerCase().includes(q)
+    );
+    renderTable(filtered);
+  }
+
+  loadTickets();
+</script>
+</body>
+</html>
