@@ -58,11 +58,17 @@
 </div>
 
 <script>
-  let allTickets = [];
+  const isLocalBackend = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  let allTickets = [
+    { id: 102, customer: 'Sneha Nair', phone: '9123456780', subject: 'Washing Machine Installation', priority: 'Medium', status: 'In Progress' },
+    { id: 101, customer: 'Rahul Sharma', phone: '9876543210', subject: 'AC Cooling Issue', priority: 'High', status: 'Open' }
+  ];
 
   async function loadTickets() {
-    const res = await fetch('/api/tickets');
-    allTickets = await res.json();
+    if (isLocalBackend) {
+      const res = await fetch('/api/tickets');
+      allTickets = await res.json();
+    }
     renderTable(allTickets);
   }
 
@@ -94,23 +100,39 @@
       alert("Please enter a valid 10-digit phone number.");
       return;
     }
-    const params = new URLSearchParams({
-      name: document.getElementById('name').value,
-      email: document.getElementById('email').value,
-      phone: phone,
-      priority: document.getElementById('priority').value,
-      subject: document.getElementById('subject').value,
-      description: document.getElementById('description').value
-    });
 
-    await fetch('/api/tickets', { method: 'POST', body: params.toString() });
+    if (isLocalBackend) {
+      const params = new URLSearchParams({
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: phone,
+        priority: document.getElementById('priority').value,
+        subject: document.getElementById('subject').value,
+        description: document.getElementById('description').value
+      });
+      await fetch('/api/tickets', { method: 'POST', body: params.toString() });
+    } else {
+      allTickets.unshift({
+        id: allTickets.length + 101,
+        customer: document.getElementById('name').value,
+        phone: phone,
+        subject: document.getElementById('subject').value,
+        priority: document.getElementById('priority').value,
+        status: 'Open'
+      });
+    }
     e.target.reset();
     loadTickets();
   });
 
   async function updateStatus(id, status) {
-    const params = new URLSearchParams({ id, status });
-    await fetch('/api/tickets', { method: 'PUT', body: params.toString() });
+    if (isLocalBackend) {
+      const params = new URLSearchParams({ id, status });
+      await fetch('/api/tickets', { method: 'PUT', body: params.toString() });
+    } else {
+      const ticket = allTickets.find(t => t.id === id);
+      if (ticket) ticket.status = status;
+    }
     loadTickets();
   }
 
